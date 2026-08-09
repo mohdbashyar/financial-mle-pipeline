@@ -57,27 +57,90 @@ def check_api_health():
 
 def fetch_prediction(ticker: str):
     try:
-        res = requests.post(f"{API_URL}/predict", json={"ticker": ticker}, timeout=10)
+        res = requests.post(f"{API_URL}/predict", json={"ticker": ticker}, timeout=3)
         if res.status_code == 200:
             return res.json()
-        else:
-            st.error(f"API Error: {res.json().get('detail', 'Unknown error')}")
+    except Exception:
+        pass
+
+    # Direct fallback for Standalone Cloud Deployment (e.g. Streamlit Community Cloud)
+    try:
+        from data_pipeline.fetch_data import fetch_stock_data, save_market_data_to_db
+        from models.features import load_data_from_db, engineer_features
+        from models.train import train_model, ARTIFACT_DIR
+        import pickle
+
+        df = load_data_from_db(ticker=ticker)
+        if df.empty or len(df) < 30:
+            raw_df = fetch_stock_data(ticker, period="1y")
+            save_market_data_to_db(raw_df)
+            df = load_data_from_db(ticker=ticker)
+
+        df_feat = engineer_features(df)
+        if not df_feat.empty:
+            model_path = os.path.join(ARTIFACT_DIR, "model.pkl")
+            meta_path = os.path.join(ARTIFACT_DIR, "metadata.pkl")
+
+            if os.path.exists(model_path) and os.path.exists(meta_path):
+                with open(model_path, "rb") as f:
+                    model = pickle.load(f)
+                with open(meta_path, "rb") as f:
+                    metadata = pickle.load(f)
+            else:
+                model, metadata = train_model(ticker=ticker)
+
+            feature_cols = metadata.get("feature_cols", [
+                "daily_return", "sma_7", "sma_21", "rsi_14",
+                "volatility_5d", "return_lag1", "return_lag2", "sentiment_score"
+            ])
+            latest_row = df_feat.iloc[-1]
+            X_latest = latest_row[feature_cols].values.reshape(1, -1)
+
+            pred_class = int(model.predict(X_latest)[0])
+            prob = model.predict_proba(X_latest)[0] if hasattr(model, "predict_proba") else [0.5, 0.5]
+
+            return {
+                "ticker": ticker,
+                "prediction": "UP" if pred_class == 1 else "DOWN",
+                "confidence": round(float(prob[pred_class]), 4),
+                "model_version": metadata.get("model_version", "v1.0") + " (Cloud)",
+                "latest_price": float(latest_row["close"]),
+                "sentiment_score": float(latest_row["sentiment_score"]),
+                "date": str(latest_row["date"].strftime("%Y-%m-%d")),
+            }
     except Exception as e:
-        st.warning(f"Could not connect to FastAPI server at {API_URL}. Exception: {e}")
+        st.error(f"Error executing prediction engine: {e}")
     return None
 
 
 def fetch_historical_data(ticker: str):
     try:
-        res = requests.get(f"{API_URL}/data/{ticker}", timeout=10)
+        res = requests.get(f"{API_URL}/data/{ticker}", timeout=3)
         if res.status_code == 200:
             data = res.json().get("data", [])
             if data:
                 df = pd.DataFrame(data)
                 df["date"] = pd.to_datetime(df["date"])
                 return df
+    except Exception:
+        pass
+
+    # Direct fallback for Standalone Cloud Deployment
+    try:
+        from data_pipeline.fetch_data import fetch_stock_data, save_market_data_to_db
+        from models.features import load_data_from_db
+
+        df = load_data_from_db(ticker=ticker)
+        if df.empty:
+            raw_df = fetch_stock_data(ticker, period="6mo")
+            save_market_data_to_db(raw_df)
+            df = load_data_from_db(ticker=ticker)
+
+        if not df.empty:
+            df["date"] = pd.to_datetime(df["date"])
+            return df
     except Exception as e:
-        st.warning(f"Could not fetch historical data from API: {e}")
+        st.error(f"Error loading historical market data: {e}")
     return pd.DataFrame()
 
 
@@ -102,7 +165,7 @@ if health:
     st.sidebar.info(f"Database: {'Connected' if health.get('database_connected') else 'Offline'}")
     st.sidebar.info(f"ML Model: {'Loaded' if health.get('model_loaded') else 'On-Demand'}")
 else:
-    st.sidebar.error("FastAPI Backend: Offline (Start with `uvicorn api.main:app`)")
+    st.sidebar.info("Execution Mode: Standalone Direct Cloud Pipeline")
 
 if st.sidebar.button("🔄 Refresh Data & Predict", use_container_width=True):
     st.cache_data.clear()

@@ -22,30 +22,44 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Custom CSS for rich modern aesthetics
+# Custom CSS for rich modern aesthetics & high-contrast metric cards
 st.markdown("""
     <style>
-        .main {
-            background-color: #0E1117;
+        [data-testid="stMetric"] {
+            background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%) !important;
+            padding: 18px !important;
+            border-radius: 14px !important;
+            border: 1px solid #334155 !important;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
         }
-        .stMetric {
-            background: linear-gradient(135deg, #1E2640 0%, #0F172A 100%);
-            padding: 18px;
-            border-radius: 12px;
-            border: 1px solid #334155;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
-        }
-        .stMetric:hover {
-            border-color: #38BDF8;
+        [data-testid="stMetric"]:hover {
+            border-color: #38BDF8 !important;
             transform: translateY(-2px);
             transition: all 0.2s ease-in-out;
         }
+        [data-testid="stMetricLabel"] {
+            color: #CBD5E1 !important;
+            font-weight: 600 !important;
+        }
+        [data-testid="stMetricLabel"] p {
+            color: #CBD5E1 !important;
+            font-size: 0.95rem !important;
+            font-weight: 600 !important;
+        }
+        [data-testid="stMetricValue"] {
+            color: #FFFFFF !important;
+            font-weight: 800 !important;
+        }
+        [data-testid="stMetricValue"] div {
+            color: #FFFFFF !important;
+            font-weight: 800 !important;
+        }
         .trend-up {
-            color: #4ADE80;
+            color: #4ADE80 !important;
             font-weight: bold;
         }
         .trend-down {
-            color: #F87171;
+            color: #F87171 !important;
             font-weight: bold;
         }
     </style>

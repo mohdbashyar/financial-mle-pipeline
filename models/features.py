@@ -2,7 +2,7 @@ import logging
 import pandas as pd
 import numpy as np
 from sqlalchemy import create_engine
-from data_pipeline.db import DATABASE_URL, MarketData
+from data_pipeline.db import DATABASE_URL, MarketData, init_db
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -10,13 +10,19 @@ logger = logging.getLogger(__name__)
 
 def load_data_from_db(ticker: str = None) -> pd.DataFrame:
     """Loads market data records from the database into a DataFrame."""
+    init_db()
     engine = create_engine(DATABASE_URL)
     query = "SELECT * FROM market_data"
     if ticker:
         query += f" WHERE ticker = '{ticker.upper()}'"
     query += " ORDER BY date ASC"
 
-    df = pd.read_sql(query, engine)
+    try:
+        df = pd.read_sql(query, engine)
+    except Exception as e:
+        logger.warning(f"Error executing SQL query: {e}")
+        df = pd.DataFrame()
+
     if df.empty:
         logger.warning(f"No database records found for query: {query}")
     else:

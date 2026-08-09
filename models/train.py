@@ -4,6 +4,10 @@ import logging
 import argparse
 import mlflow
 import mlflow.sklearn
+try:
+    import mlflow.xgboost
+except ImportError:
+    pass
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
 
@@ -78,7 +82,17 @@ def train_model(ticker: str = "AAPL", n_estimators: int = 100, max_depth: int = 
         mlflow.log_metric("f1_score", f1)
         mlflow.log_metric("roc_auc", auc)
 
-        mlflow.sklearn.log_model(model, "model")
+        if model_type == "xgb":
+            try:
+                mlflow.xgboost.log_model(model, "model")
+            except Exception:
+                mlflow.sklearn.log_model(
+                    model,
+                    "model",
+                    skops_trusted_types=["xgboost.core.Booster", "xgboost.sklearn.XGBClassifier"],
+                )
+        else:
+            mlflow.sklearn.log_model(model, "model")
 
         # Save model locally for FastAPI serving
         model_path = os.path.join(ARTIFACT_DIR, "model.pkl")

@@ -113,24 +113,21 @@ def query_rag(query: str, ticker: Optional[str] = None) -> Dict:
     try:
         client = genai.Client(api_key=api_key)
         
-        prompt = f"""You are a senior financial analyst and AI assistant. 
+        system_instruction = """You are a senior financial analyst and AI assistant. 
 Your task is to synthesize the provided news headlines into a highly detailed, comprehensive market briefing.
 
 CRITICAL RULES:
-1. You MUST write a detailed response with at least 3 distinct bullet points or paragraphs. Do NOT be brief.
+1. You MUST write a detailed, multi-paragraph response with at least 3 distinct bullet points.
 2. You MUST explicitly name the publisher/source (e.g., "According to MT Newswires...", "Bloomberg reports...") for EVERY single point you make.
-3. If multiple articles discuss the same event, synthesize them and cite all sources.
-4. Expand on the details provided in the summaries to give a complete picture.
-5. Use ONLY the provided Context News. If the Context News does not contain the answer, you MUST reply exactly: "I don't have enough recent news data to answer this." Do not attempt to guess.
+3. You must expand on the details provided in the summaries to give a complete picture.
+4. Use ONLY the provided Context News. If the Context News does not contain the answer, you MUST reply exactly: "I don't have enough recent news data to answer this." Do not attempt to guess."""
 
-Context News:
-{context_text}
+        user_prompt = f"""Context News:\n{context_text}\n\nUser Question: {query}"""
 
-User Question: {query}
-"""
         response = client.models.generate_content(
             model='gemini-2.5-flash',
-            contents=prompt,
+            contents=user_prompt,
+            config={"system_instruction": system_instruction, "temperature": 0.2}
         )
         answer = response.text
     except Exception as e:

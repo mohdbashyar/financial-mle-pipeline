@@ -120,12 +120,19 @@ def fetch_prediction(ticker: str):
             pred_class = int(model.predict(X_latest)[0])
             prob = model.predict_proba(X_latest)[0] if hasattr(model, "predict_proba") else [0.5, 0.5]
 
+            # Fetch real-time price instead of stale historical close
+            try:
+                import yfinance as yf
+                live_price = yf.Ticker(ticker).fast_info.get("lastPrice", float(latest_row["close"]))
+            except Exception:
+                live_price = float(latest_row["close"])
+
             return {
                 "ticker": ticker,
                 "prediction": "UP" if pred_class == 1 else "DOWN",
                 "confidence": round(float(prob[pred_class]), 4),
                 "model_version": metadata.get("model_version", "v1.0") + " (Cloud)",
-                "latest_price": float(latest_row["close"]),
+                "latest_price": float(live_price),
                 "sentiment_score": float(latest_row["sentiment_score"]),
                 "date": str(latest_row["date"].strftime("%Y-%m-%d")),
             }

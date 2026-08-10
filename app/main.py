@@ -328,9 +328,15 @@ if not df_history.empty:
                     else:
                         st.error(f"Error from RAG API: {res.text}")
                 except Exception as e:
-                    # Fallback if API is offline
+                    # Fallback if API is offline (Streamlit Cloud mode)
                     try:
-                        from models.rag import query_rag
+                        import yfinance as yf
+                        from models.rag import store_news_in_chroma, query_rag
+                        # Always fetch fresh news and store in ChromaDB before querying
+                        ticker_obj = yf.Ticker(active_ticker)
+                        fresh_news = ticker_obj.news
+                        if fresh_news:
+                            store_news_in_chroma(active_ticker, fresh_news)
                         data = query_rag(query, ticker=active_ticker)
                         st.markdown(f"**Answer:**\n{data.get('answer', '')}")
                         sources = data.get("sources", [])

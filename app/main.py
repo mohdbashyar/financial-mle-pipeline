@@ -192,7 +192,10 @@ if st.sidebar.button("🔄 Refresh Data & Predict", use_container_width=True):
     st.cache_data.clear()
 
 # Main App Body
-with st.spinner(f"Fetching predictions and market telemetry for {active_ticker}..."):
+from data_pipeline.sentiment import fetch_ticker_news_sentiment
+with st.spinner(f"Fetching predictions, market telemetry, and latest news for {active_ticker}..."):
+    # Force a fresh news fetch into ChromaDB every time
+    current_sentiment = fetch_ticker_news_sentiment(active_ticker)
     prediction_data = fetch_prediction(active_ticker)
     df_history = fetch_historical_data(active_ticker)
 
@@ -200,7 +203,7 @@ if prediction_data:
     pred = prediction_data.get("prediction", "N/A")
     conf = prediction_data.get("confidence", 0.0) * 100
     price = prediction_data.get("latest_price", 0.0)
-    sentiment = prediction_data.get("sentiment_score", 0.0)
+    sentiment = current_sentiment if current_sentiment != 0.0 else prediction_data.get("sentiment_score", 0.0)
 
     # Top KPI Dashboard
     col1, col2, col3, col4 = st.columns(4)

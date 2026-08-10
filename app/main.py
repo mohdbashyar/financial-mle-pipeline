@@ -301,7 +301,12 @@ if not df_history.empty:
     st.subheader(f"💬 Financial News Assistant (RAG)")
     st.markdown(f"Ask natural language questions about {active_ticker}'s recent news.")
     
-    query = st.text_input("Ask a question:", placeholder=f"Why did {active_ticker} sentiment drop recently?")
+    st.info(f"💡 **Suggested Questions:**\n"
+            f"- *\"Summarize the latest news headlines for {active_ticker}.\"*\n"
+            f"- *\"What are the main events driving {active_ticker} today?\"*\n"
+            f"- *\"Are there any negative or bearish news articles about {active_ticker}?\"*")
+    
+    query = st.text_input("Ask a question:", placeholder=f"e.g., Summarize the latest news for {active_ticker}")
     if st.button("Ask Assistant"):
         if not query:
             st.warning("Please enter a question.")

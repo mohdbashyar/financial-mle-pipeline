@@ -101,6 +101,11 @@ def query_rag(query: str, ticker: Optional[str] = None) -> Dict:
 Use ONLY the following retrieved news headlines to answer the user's question. 
 If the retrieved news does not contain the answer, say "I don't have enough recent news data to answer this."
 
+When answering:
+1. Be highly detailed and comprehensive.
+2. Explicitly mention the publisher/source for the news you are referencing in your answer text.
+3. Format your answer with clear bullet points if summarizing multiple news items or events.
+
 Context News:
 {context_text}
 

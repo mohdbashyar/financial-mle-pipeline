@@ -329,21 +329,75 @@ if not df_history.empty:
                         st.error(f"Error from RAG API: {res.text}")
                 except Exception as e:
                     # Fallback if API is offline (Streamlit Cloud mode)
+                    # Bypass ChromaDB entirely — build context directly from yfinance news
                     try:
                         import yfinance as yf
-                        from models.rag import store_news_in_chroma, query_rag
-                        # Always fetch fresh news and store in ChromaDB before querying
+                        from google import genai
+                        
                         ticker_obj = yf.Ticker(active_ticker)
-                        fresh_news = ticker_obj.news
-                        if fresh_news:
+                        fresh_news = ticker_obj.news or []
+                        
+                        # Also try to store in ChromaDB in background (non-blocking)
+                        try:
+                            from models.rag import store_news_in_chroma
                             store_news_in_chroma(active_ticker, fresh_news)
-                        data = query_rag(query, ticker=active_ticker)
-                        st.markdown(f"**Answer:**\n{data.get('answer', '')}")
-                        sources = data.get("sources", [])
-                        if sources:
-                            with st.expander("View Sources"):
-                                for src in sources:
-                                    st.markdown(f"- [{src}]({src})")
+                        except Exception:
+                            pass
+                        
+                        # Build rich context DIRECTLY from yfinance news (no ChromaDB dependency)
+                        context_parts = []
+                        source_links = []
+                        for item in fresh_news:
+                            content_dict = item.get("content") if isinstance(item.get("content"), dict) else {}
+                            title = item.get("title") or content_dict.get("title", "")
+                            if not title:
+                                continue
+                            summary = item.get("summary") or content_dict.get("summary", "")
+                            publisher = item.get("publisher") or content_dict.get("provider", {}).get("displayName", "Unknown") or "Unknown"
+                            pub_date = item.get("providerPublishTime") or content_dict.get("pubDate", "")
+                            pub_date = str(pub_date).split("T")[0] if pub_date else "Recent"
+                            link = item.get("link") or content_dict.get("canonicalUrl", {}).get("url", "")
+                            
+                            entry = f"- Title: {title}"
+                            if summary:
+                                entry += f"\n  Summary: {summary}"
+                            entry += f"\n  (Source: {publisher}, Date: {pub_date})"
+                            context_parts.append(entry)
+                            if link:
+                                source_links.append(str(link))
+                        
+                        context_text = "\n".join(context_parts)
+                        
+                        if not context_text:
+                            st.warning("No recent news found for this ticker.")
+                        else:
+                            gemini_api_key = os.getenv("GEMINI_API_KEY")
+                            if not gemini_api_key:
+                                st.error("GEMINI_API_KEY is not set. Please add it to Streamlit Secrets.")
+                            else:
+                                client = genai.Client(api_key=gemini_api_key)
+                                
+                                system_instruction = f"""You are a senior financial analyst writing a comprehensive market briefing about {active_ticker}.
+
+STRICT RULES YOU MUST FOLLOW:
+1. Write a LONG, DETAILED response — at minimum 4-5 bullet points, each with 2-3 sentences of analysis.
+2. For EVERY point, cite the publisher name AND date (e.g. "According to Investing.com on 2026-08-10...").
+3. Include specific details from the article summaries — numbers, names, percentages, chip models, etc.
+4. Group related news together and provide analytical context about what each development means for {active_ticker}.
+5. Use ONLY the provided Context News. If the news doesn't answer the question, say so."""
+
+                                user_prompt = f"Context News:\n{context_text}\n\nUser Question: {query}"
+                                
+                                response = client.models.generate_content(
+                                    model='gemini-2.5-flash',
+                                    contents=user_prompt,
+                                    config={"system_instruction": system_instruction, "temperature": 0.7}
+                                )
+                                st.markdown(f"**Answer:** {response.text}")
+                                if source_links:
+                                    with st.expander("View Sources"):
+                                        for src in list(set(source_links)):
+                                            st.markdown(f"- [{src}]({src})")
                     except Exception as fallback_err:
                         st.error(f"Failed to query local RAG engine: {fallback_err}")
 

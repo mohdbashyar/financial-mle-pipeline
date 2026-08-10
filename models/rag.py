@@ -29,28 +29,39 @@ def store_news_in_chroma(ticker: str, news_items: List[Dict]):
     ids = []
     
     for i, item in enumerate(news_items):
-        title = item.get("title") or item.get("content", {}).get("title", "")
-        if not title:
+        try:
+            content_dict = item.get("content") if isinstance(item.get("content"), dict) else {}
+            
+            title = item.get("title") or content_dict.get("title", "")
+            if not title:
+                continue
+                
+            # Enhance RAG context with summary
+            summary = item.get("summary") or content_dict.get("summary", "")
+            full_text = f"Title: {title}\nSummary: {summary}" if summary else title
+                
+            publisher = item.get("publisher") or content_dict.get("provider", {}).get("displayName", "Unknown")
+            if not publisher:
+                publisher = "Unknown"
+                
+            link = item.get("link") or content_dict.get("canonicalUrl", {}).get("url", "")
+            if not link:
+                link = ""
+            
+            # yfinance news uses uuid or id
+            doc_id = item.get("uuid") or item.get("id") or f"{ticker}_news_{i}"
+            
+            # We store the full_text as the document to embed
+            documents.append(full_text)
+            metadatas.append({
+                "ticker": ticker,
+                "publisher": str(publisher),
+                "link": str(link)
+            })
+            ids.append(doc_id)
+        except Exception as e:
+            logger.warning(f"Skipping a news item for {ticker} due to parsing error: {e}")
             continue
-            
-        # Enhance RAG context with summary
-        summary = item.get("summary") or item.get("content", {}).get("summary", "")
-        full_text = f"Title: {title}\nSummary: {summary}" if summary else title
-            
-        publisher = item.get("publisher") or item.get("content", {}).get("provider", {}).get("displayName", "Unknown")
-        link = item.get("link") or item.get("content", {}).get("canonicalUrl", {}).get("url", "")
-        
-        # yfinance news uses uuid or id
-        doc_id = item.get("uuid") or item.get("id") or f"{ticker}_news_{i}"
-        
-        # We store the full_text as the document to embed
-        documents.append(full_text)
-        metadatas.append({
-            "ticker": ticker,
-            "publisher": publisher,
-            "link": link
-        })
-        ids.append(doc_id)
         
     if documents:
         try:

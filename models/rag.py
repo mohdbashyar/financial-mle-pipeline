@@ -33,13 +33,18 @@ def store_news_in_chroma(ticker: str, news_items: List[Dict]):
         if not title:
             continue
             
-        publisher = item.get("publisher", "Unknown")
-        link = item.get("link", "")
-        # yfinance news uses uuid as id
-        doc_id = item.get("uuid", f"{ticker}_news_{i}")
+        # Enhance RAG context with summary
+        summary = item.get("summary") or item.get("content", {}).get("summary", "")
+        full_text = f"Title: {title}\nSummary: {summary}" if summary else title
+            
+        publisher = item.get("publisher") or item.get("content", {}).get("provider", {}).get("displayName", "Unknown")
+        link = item.get("link") or item.get("content", {}).get("canonicalUrl", {}).get("url", "")
         
-        # We store the title as the document to embed
-        documents.append(title)
+        # yfinance news uses uuid or id
+        doc_id = item.get("uuid") or item.get("id") or f"{ticker}_news_{i}"
+        
+        # We store the full_text as the document to embed
+        documents.append(full_text)
         metadatas.append({
             "ticker": ticker,
             "publisher": publisher,
@@ -70,11 +75,11 @@ def query_rag(query: str, ticker: Optional[str] = None) -> Dict:
     # Build filter if ticker is provided
     where_filter = {"ticker": ticker.upper()} if ticker else None
     
-    # Retrieve top 5 most relevant documents
+    # Retrieve top 10 most relevant documents for richer context
     try:
         results = collection.query(
             query_texts=[query],
-            n_results=5,
+            n_results=10,
             where=where_filter
         )
     except Exception as e:

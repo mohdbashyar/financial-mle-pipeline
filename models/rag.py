@@ -86,11 +86,11 @@ def query_rag(query: str, ticker: Optional[str] = None) -> Dict:
     # Build filter if ticker is provided
     where_filter = {"ticker": ticker.upper()} if ticker else None
     
-    # Retrieve top 10 most relevant documents for richer context
+    # Retrieve top 15 most relevant documents for richer context
     try:
         results = collection.query(
             query_texts=[query],
-            n_results=10,
+            n_results=15,
             where=where_filter
         )
     except Exception as e:
@@ -113,14 +113,15 @@ def query_rag(query: str, ticker: Optional[str] = None) -> Dict:
     try:
         client = genai.Client(api_key=api_key)
         
-        prompt = f"""You are a professional financial AI assistant. 
-Use ONLY the following retrieved news headlines to answer the user's question. 
-If the retrieved news does not contain the answer, say "I don't have enough recent news data to answer this."
+        prompt = f"""You are a senior financial analyst and AI assistant. 
+Your task is to synthesize the provided news headlines into a highly detailed, comprehensive market briefing.
 
-When answering:
-1. Be highly detailed and comprehensive.
-2. Explicitly mention the publisher/source for the news you are referencing in your answer text.
-3. Format your answer with clear bullet points if summarizing multiple news items or events.
+CRITICAL RULES:
+1. You MUST write a detailed response with at least 3 distinct bullet points or paragraphs. Do NOT be brief.
+2. You MUST explicitly name the publisher/source (e.g., "According to MT Newswires...", "Bloomberg reports...") for EVERY single point you make.
+3. If multiple articles discuss the same event, synthesize them and cite all sources.
+4. Expand on the details provided in the summaries to give a complete picture.
+5. Use ONLY the provided Context News. If the Context News does not contain the answer, you MUST reply exactly: "I don't have enough recent news data to answer this." Do not attempt to guess.
 
 Context News:
 {context_text}

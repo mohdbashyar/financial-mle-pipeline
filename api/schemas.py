@@ -36,3 +36,11 @@ class HistoryResponse(BaseModel):
     ticker: str
     total_records: int
     data: List[MarketDataPoint]
+
+class MarketQueryRequest(BaseModel):
+    query: str = Field(..., description="Natural language question about the market news")
+    ticker: Optional[str] = Field(None, description="Optional ticker symbol to filter news by")
+
+class MarketQueryResponse(BaseModel):
+    answer: str
+    sources: List[str]

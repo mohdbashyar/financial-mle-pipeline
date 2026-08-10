@@ -57,12 +57,19 @@ def analyze_headline_sentiment(headline: str) -> float:
 
 
 def fetch_ticker_news_sentiment(ticker_symbol: str) -> float:
-    """Fetches recent news headlines for a ticker using yfinance and computes an average sentiment score."""
+    """Fetches recent news headlines for a ticker, stores them in ChromaDB, and computes an average sentiment score."""
     try:
         ticker = yf.Ticker(ticker_symbol)
         news = ticker.news
         if not news:
             return 0.0
+
+        # Store raw news items in ChromaDB for RAG queries
+        try:
+            from models.rag import store_news_in_chroma
+            store_news_in_chroma(ticker_symbol, news)
+        except Exception as e:
+            logger.error(f"Error storing news in ChromaDB: {e}")
 
         scores: List[float] = []
         for item in news:

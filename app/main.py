@@ -296,6 +296,43 @@ if not df_history.empty:
 
     st.plotly_chart(fig, use_container_width=True)
 
+    # RAG Financial Assistant Section
+    st.markdown("---")
+    st.subheader(f"💬 Financial News Assistant (RAG)")
+    st.markdown(f"Ask natural language questions about {active_ticker}'s recent news.")
+    
+    query = st.text_input("Ask a question:", placeholder=f"Why did {active_ticker} sentiment drop recently?")
+    if st.button("Ask Assistant"):
+        if not query:
+            st.warning("Please enter a question.")
+        else:
+            with st.spinner("Analyzing news and generating answer..."):
+                try:
+                    res = requests.post(f"{API_URL}/v1/market-query", json={"query": query, "ticker": active_ticker}, timeout=10)
+                    if res.status_code == 200:
+                        data = res.json()
+                        st.markdown(f"**Answer:**\n{data.get('answer', '')}")
+                        sources = data.get("sources", [])
+                        if sources:
+                            with st.expander("View Sources"):
+                                for src in sources:
+                                    st.markdown(f"- [{src}]({src})")
+                    else:
+                        st.error(f"Error from RAG API: {res.text}")
+                except Exception as e:
+                    # Fallback if API is offline
+                    try:
+                        from models.rag import query_rag
+                        data = query_rag(query, ticker=active_ticker)
+                        st.markdown(f"**Answer:**\n{data.get('answer', '')}")
+                        sources = data.get("sources", [])
+                        if sources:
+                            with st.expander("View Sources"):
+                                for src in sources:
+                                    st.markdown(f"- [{src}]({src})")
+                    except Exception as fallback_err:
+                        st.error(f"Failed to query local RAG engine: {fallback_err}")
+
     # Raw Data Table Toggle
     with st.expander("🔍 View Raw Historical Telemetry Table"):
         st.dataframe(df_history.sort_values("date", ascending=False), use_container_width=True)

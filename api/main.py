@@ -8,10 +8,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
-from api.schemas import PredictRequest, PredictResponse, HealthResponse, HistoryResponse, MarketDataPoint
+from api.schemas import PredictRequest, PredictResponse, HealthResponse, HistoryResponse, MarketDataPoint, MarketQueryRequest, MarketQueryResponse
 from data_pipeline.db import get_db_session, MarketData, engine
 from data_pipeline.fetch_data import fetch_stock_data, save_market_data_to_db
 from models.features import engineer_features, load_data_from_db
+from models.rag import query_rag
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -172,3 +173,17 @@ def get_historical_data(ticker: str, db: Session = Depends(get_db_session)):
         total_records=len(data_points),
         data=data_points,
     )
+
+@app.post("/v1/market-query", response_model=MarketQueryResponse)
+def get_market_query(request: MarketQueryRequest):
+    """Retrieves news from ChromaDB and uses Gemini LLM to answer the user's natural language question."""
+    logger.info(f"Received market query: '{request.query}' for ticker: '{request.ticker}'")
+    try:
+        result = query_rag(query=request.query, ticker=request.ticker)
+        return MarketQueryResponse(
+            answer=result["answer"],
+            sources=result["sources"]
+        )
+    except Exception as e:
+        logger.error(f"Error processing market query: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate answer: {str(e)}")

@@ -14,7 +14,7 @@ CHROMA_DB_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "chroma
 try:
     chroma_client = chromadb.PersistentClient(path=CHROMA_DB_DIR)
     # The default embedding function is all-MiniLM-L6-v2
-    collection = chroma_client.get_or_create_collection(name="financial_news")
+    collection = chroma_client.get_or_create_collection(name="financial_news_v3")
 except Exception as e:
     logger.error(f"Failed to initialize ChromaDB: {e}")
     collection = None
@@ -47,6 +47,13 @@ def store_news_in_chroma(ticker: str, news_items: List[Dict]):
             link = item.get("link") or content_dict.get("canonicalUrl", {}).get("url", "")
             if not link:
                 link = ""
+                
+            pub_date = item.get("providerPublishTime") or content_dict.get("pubDate", "")
+            if pub_date:
+                # Truncate to just the date part if it's an ISO timestamp
+                pub_date = str(pub_date).split("T")[0]
+            else:
+                pub_date = "Recent"
             
             # yfinance news uses uuid or id
             doc_id = item.get("uuid") or item.get("id") or f"{ticker}_news_{i}"
@@ -56,7 +63,8 @@ def store_news_in_chroma(ticker: str, news_items: List[Dict]):
             metadatas.append({
                 "ticker": ticker,
                 "publisher": str(publisher),
-                "link": str(link)
+                "link": str(link),
+                "date": str(pub_date)
             })
             ids.append(doc_id)
         except Exception as e:
@@ -104,7 +112,7 @@ def query_rag(query: str, ticker: Optional[str] = None) -> Dict:
     retrieved_metadatas = results["metadatas"][0]
     
     # Construct context string
-    context_text = "\n".join([f"- {doc} (Source: {meta.get('publisher', 'Unknown')})" 
+    context_text = "\n".join([f"- {doc} (Source: {meta.get('publisher', 'Unknown')}, Date: {meta.get('date', 'Recent')})" 
                               for doc, meta in zip(retrieved_docs, retrieved_metadatas)])
                               
     sources = [meta.get("link", "") for meta in retrieved_metadatas if meta.get("link")]
@@ -118,8 +126,8 @@ Your task is to synthesize the provided news headlines into a highly detailed, c
 
 CRITICAL RULES:
 1. You MUST write a detailed, multi-paragraph response with at least 3 distinct bullet points.
-2. You MUST explicitly name the publisher/source (e.g., "According to MT Newswires...", "Bloomberg reports...") for EVERY single point you make.
-3. You must expand on the details provided in the summaries to give a complete picture.
+2. You MUST explicitly name the publisher/source AND the date (e.g., "According to MT Newswires on 2024-05-12...", "Bloomberg reports...") for EVERY single point you make.
+3. You must expand on the details provided in the summaries to give a complete picture. Provide analysis where possible.
 4. Use ONLY the provided Context News. If the Context News does not contain the answer, you MUST reply exactly: "I don't have enough recent news data to answer this." Do not attempt to guess."""
 
         user_prompt = f"""Context News:\n{context_text}\n\nUser Question: {query}"""
@@ -127,7 +135,7 @@ CRITICAL RULES:
         response = client.models.generate_content(
             model='gemini-2.5-flash',
             contents=user_prompt,
-            config={"system_instruction": system_instruction, "temperature": 0.2}
+            config={"system_instruction": system_instruction, "temperature": 0.7}
         )
         answer = response.text
     except Exception as e:

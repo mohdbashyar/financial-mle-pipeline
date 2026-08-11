@@ -2,7 +2,7 @@
 
 > **Video Demo**
 > 
-> *[Placeholder: Insert Video Demo URL Here]*
+> https://github.com/user-attachments/assets/a433ab28-4cc3-4ef2-862e-ab3684402380
 > 
 > *Watch the pipeline in action, featuring automated ML training, live market telemetry, and generative RAG financial analysis.*
 

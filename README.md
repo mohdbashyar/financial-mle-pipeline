@@ -1,4 +1,4 @@
-# ⚡ Financial Machine Learning Engineering (MLE) Pipeline
+# Financial Machine Learning Engineering (MLE) Pipeline
 
 > **Video Demo**
 > 
@@ -6,13 +6,17 @@
 > 
 > *Watch the pipeline in action, featuring automated ML training, live market telemetry, and generative RAG financial analysis.*
 
+> **Live Streamlit Dashboard**
+> 
+> https://financial-mle-pipeline-bashyar.streamlit.app/
+
 ---
 
-**End-to-End Financial ML & Generative AI Pipeline**. Features automated real-time OHLCV market data ingestion, HuggingFace FinBERT news sentiment scoring, ML market trend forecasting (XGBoost/RandomForest), and an interactive **ChromaDB + Google Gemini** RAG engine for deep-dive news Q&A. Fully deployed with FastAPI and Streamlit.
+**End-to-End Financial ML & Generative AI Pipeline**. Features automated real-time OHLCV market data ingestion, HuggingFace FinBERT news sentiment scoring, ML market trend forecasting (XGBoost/Random Forest), ChromaDB vector store for news caching, and a **Google Gemini 2.5 RAG assistant** for natural language financial Q&A.
 
 ---
 
-## 🏛️ System Architecture
+## System Architecture
 
 ```mermaid
 graph TD
@@ -44,7 +48,7 @@ graph TD
 
 ---
 
-## 🚀 Quick Start Guide
+## Quick Start Guide
 
 ### 0. Prerequisites
 You need a Google Gemini API Key for the RAG assistant to work.
@@ -83,15 +87,15 @@ Open `http://localhost:8501` to access the interactive dashboard, and `http://lo
 
 ---
 
-## ☁️ Cloud Fallback Mode (Streamlit Community Cloud)
+## Cloud Fallback Mode (Streamlit Community Cloud)
 
 If the FastAPI backend is not running (e.g., when deployed standalone on Streamlit Community Cloud), the Streamlit app seamlessly falls back to a serverless mode:
 - Live data fetching is executed directly within Streamlit.
-- The **RAG Engine** bypasses local ChromaDB caching and builds context directly from real-time `yfinance` fetches straight into **Google Gemini**, ensuring live financial Q&A works flawlessly without a persistent disk state.
+- The **RAG Engine** bypasses local ChromaDB caching and builds context directly from real-time `yfinance` fetches straight into **Google Gemini**, ensuring live financial Q&A works flawlessly without backend dependencies.
 
 ---
 
-## 🐳 Docker Deployment (Single Command)
+## Docker Deployment (Single Command)
 
 ```bash
 docker-compose up --build
@@ -104,7 +108,7 @@ Spins up:
 
 ---
 
-## 🧪 Running Tests
+## Running Tests
 
 The test suite covers API endpoints, RAG pipeline integration, data fetching logic, and model training.
 
